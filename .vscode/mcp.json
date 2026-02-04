@@ -1,0 +1,13 @@
+{
+  "servers": {
+    "mt5": {
+      "command": "uv",
+      "args": ["run", "mcp-server-mt5"],
+      "env": {
+        "MT5_LOGIN": "${env:MT5_LOGIN}",
+        "MT5_PASSWORD": "${env:MT5_PASSWORD}",
+        "MT5_SERVER": "${env:MT5_SERVER}"
+      }
+    }
+  }
+}
