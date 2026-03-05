@@ -27,13 +27,16 @@ venv/
 ENV/
 env/
 
-# Environment variables
+# Environment variables — NEVER commit real credentials
 .env
 .env.local
 .env.*.local
+*.pem
+*.key
 
 # IDE
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
@@ -54,3 +57,7 @@ uv.lock
 # OS
 .DS_Store
 Thumbs.db
+
+# Codacy / AI instructions (local only)
+.github/instructions/
+.github/appmod/

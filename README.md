@@ -1,5 +1,9 @@
 # MCP Server for MetaTrader 5
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![MCP](https://img.shields.io/badge/MCP-compatible-green.svg)](https://modelcontextprotocol.io/)
+
 A Python-based [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that provides AI assistants like Claude with access to the MetaTrader 5 trading platform for market analysis and trade management.
 
 ## Features
@@ -23,7 +27,7 @@ A Python-based [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) 
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/mt5-mcp.git
+git clone https://github.com/P7AC1D/mt5-mcp.git
 cd mt5-mcp
 
 # Install with uv
@@ -209,6 +213,14 @@ pytest
 npx @modelcontextprotocol/inspector uv run mcp-server-mt5
 ```
 
+## Contributing
+
+Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md) before submitting a pull request.
+
+## Security
+
+For security concerns, please see [SECURITY.md](SECURITY.md). **Never commit real credentials** — use `.env` files with the provided `.env.example` as a template.
+
 ## License
 
-MIT License - See [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
