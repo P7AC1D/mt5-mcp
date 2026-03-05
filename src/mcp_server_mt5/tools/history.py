@@ -74,6 +74,48 @@ HISTORY_TOOLS: list[Tool] = [
             "required": [],
         },
     ),
+    Tool(
+        name="get_history_orders_count",
+        description=(
+            "Get the total number of historical orders in a date range. "
+            "Defaults to the last 30 days if no dates are provided."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "date_from": {
+                    "type": "string",
+                    "description": "Start date/time in ISO format",
+                },
+                "date_to": {
+                    "type": "string",
+                    "description": "End date/time in ISO format",
+                },
+            },
+            "required": [],
+        },
+    ),
+    Tool(
+        name="get_history_deals_count",
+        description=(
+            "Get the total number of historical deals in a date range. "
+            "Defaults to the last 30 days if no dates are provided."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "date_from": {
+                    "type": "string",
+                    "description": "Start date/time in ISO format",
+                },
+                "date_to": {
+                    "type": "string",
+                    "description": "End date/time in ISO format",
+                },
+            },
+            "required": [],
+        },
+    ),
 ]
 
 
@@ -227,6 +269,24 @@ async def handle_history_tool(
                 }
                 for d in deals
             ],
+        }
+
+    if name == "get_history_orders_count":
+        date_from, date_to = _parse_dates(arguments)
+        count = await client.get_history_orders_total(date_from, date_to)
+        return {
+            "date_from": date_from.isoformat(),
+            "date_to": date_to.isoformat(),
+            "count": count,
+        }
+
+    if name == "get_history_deals_count":
+        date_from, date_to = _parse_dates(arguments)
+        count = await client.get_history_deals_total(date_from, date_to)
+        return {
+            "date_from": date_from.isoformat(),
+            "date_to": date_to.isoformat(),
+            "count": count,
         }
 
     raise ValueError(f"Unknown history tool: {name}")

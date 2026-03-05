@@ -70,6 +70,22 @@ OrderSendResult = namedtuple(
     ],
 )
 
+TerminalInfo = namedtuple(
+    "TerminalInfo",
+    [
+        "connected", "trade_allowed", "tradeapi_disabled", "dlls_allowed",
+        "email_enabled", "ftp_enabled", "notifications_enabled",
+        "community_account", "community_balance", "build", "maxbars",
+        "ping_last", "retransmission", "company", "name", "language",
+        "path", "data_path", "commondata_path",
+    ],
+)
+
+BookInfo = namedtuple(
+    "BookInfo",
+    ["type", "price", "volume", "volume_real"],
+)
+
 
 @pytest.fixture
 def mock_account_info():
@@ -168,6 +184,64 @@ def mock_settings():
     )
 
 
+@pytest.fixture
+def mock_terminal_info():
+    """Sample terminal info response."""
+    return TerminalInfo(
+        connected=True,
+        trade_allowed=True,
+        tradeapi_disabled=False,
+        dlls_allowed=False,
+        email_enabled=False,
+        ftp_enabled=False,
+        notifications_enabled=False,
+        community_account=False,
+        community_balance=0.0,
+        build=4150,
+        maxbars=100000,
+        ping_last=50,
+        retransmission=0.0,
+        company="MetaQuotes",
+        name="MetaTrader 5",
+        language="English",
+        path="C:\\Program Files\\MetaTrader 5",
+        data_path="C:\\Users\\Test\\AppData\\Roaming\\MetaQuotes",
+        commondata_path="C:\\Users\\Test\\AppData\\Roaming\\MetaQuotes\\Common",
+    )
+
+
+@pytest.fixture
+def mock_book_entries():
+    """Sample market depth entries."""
+    return [
+        BookInfo(type=2, price=1.10005, volume=100, volume_real=100.0),
+        BookInfo(type=2, price=1.10010, volume=50, volume_real=50.0),
+        BookInfo(type=1, price=1.09995, volume=75, volume_real=75.0),
+        BookInfo(type=1, price=1.09990, volume=120, volume_real=120.0),
+    ]
+
+
+@pytest.fixture
+def mock_sell_position():
+    """Sample SELL position response."""
+    return PositionInfo(
+        ticket=789012,
+        symbol="GBPUSD",
+        type=1,  # SELL
+        volume=0.5,
+        price_open=1.28000,
+        price_current=1.27500,
+        sl=1.29000,
+        tp=1.26000,
+        profit=250.0,
+        swap=-1.0,
+        commission=-3.5,
+        time=int(datetime.now().timestamp()),
+        comment="Test sell",
+        magic=0,
+    )
+
+
 @pytest_asyncio.fixture
 async def mock_mt5_client(mock_settings):
     """Create MT5 client with mocked MT5 module."""
@@ -226,5 +300,28 @@ def mock_mt5_module():
         
         # Copy ticks flags
         mock_mt5.COPY_TICKS_ALL = 1
+        mock_mt5.COPY_TICKS_INFO = 2
+        mock_mt5.COPY_TICKS_TRADE = 4
+
+        # Additional timeframe constants
+        mock_mt5.TIMEFRAME_M2 = 2
+        mock_mt5.TIMEFRAME_M3 = 3
+        mock_mt5.TIMEFRAME_M4 = 4
+        mock_mt5.TIMEFRAME_M6 = 6
+        mock_mt5.TIMEFRAME_M10 = 10
+        mock_mt5.TIMEFRAME_M12 = 12
+        mock_mt5.TIMEFRAME_M20 = 20
+        mock_mt5.TIMEFRAME_H2 = 16386
+        mock_mt5.TIMEFRAME_H3 = 16387
+        mock_mt5.TIMEFRAME_H6 = 16390
+        mock_mt5.TIMEFRAME_H8 = 16392
+        mock_mt5.TIMEFRAME_H12 = 16396
+
+        # Order type constants (extended)
+        mock_mt5.ORDER_TYPE_BUY_STOP_LIMIT = 6
+        mock_mt5.ORDER_TYPE_SELL_STOP_LIMIT = 7
+
+        # Order time constants
+        mock_mt5.ORDER_TIME_SPECIFIED = 1
 
         yield mock_mt5

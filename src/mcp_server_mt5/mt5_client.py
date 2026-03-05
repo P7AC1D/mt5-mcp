@@ -382,6 +382,156 @@ class MT5Client:
         return result_dict
 
     # -------------------------------------------------------------------------
+    # Login
+    # -------------------------------------------------------------------------
+
+    async def login(
+        self,
+        login: int,
+        password: str,
+        server: str,
+        timeout: int | None = None,
+    ) -> bool:
+        """Log in to a trading account."""
+        self._check_initialized()
+
+        def _login():
+            kwargs = {"login": login, "password": password, "server": server}
+            if timeout is not None:
+                kwargs["timeout"] = timeout
+            return mt5.login(**kwargs)
+
+        result = await asyncio.to_thread(_login)
+        if not result:
+            error = await self.get_last_error()
+            raise MT5Error(f"Login failed: {error}")
+        return True
+
+    # -------------------------------------------------------------------------
+    # Market Data - OHLC Bars (from date)
+    # -------------------------------------------------------------------------
+
+    async def get_ohlc_bars_from(
+        self,
+        symbol: str,
+        timeframe: int,
+        date_from: datetime,
+        count: int,
+    ) -> list[dict[str, Any]]:
+        """Get OHLC bars from a starting date."""
+        self._check_initialized()
+        await self._ensure_symbol_selected(symbol)
+
+        rates = await asyncio.to_thread(
+            mt5.copy_rates_from, symbol, timeframe, date_from, count
+        )
+        if rates is None:
+            error = await self.get_last_error()
+            raise MT5Error(f"Failed to get OHLC bars from date: {error}")
+        return [
+            {
+                "time": int(r[0]),
+                "open": float(r[1]),
+                "high": float(r[2]),
+                "low": float(r[3]),
+                "close": float(r[4]),
+                "tick_volume": int(r[5]),
+                "spread": int(r[6]),
+                "real_volume": int(r[7]),
+            }
+            for r in rates
+        ]
+
+    # -------------------------------------------------------------------------
+    # Market Data - Ticks (from date)
+    # -------------------------------------------------------------------------
+
+    async def get_ticks_from(
+        self,
+        symbol: str,
+        date_from: datetime,
+        count: int,
+        flags: int = mt5.COPY_TICKS_ALL,
+    ) -> list[dict[str, Any]]:
+        """Get tick data from a starting date."""
+        self._check_initialized()
+        await self._ensure_symbol_selected(symbol)
+
+        ticks = await asyncio.to_thread(
+            mt5.copy_ticks_from, symbol, date_from, count, flags
+        )
+        if ticks is None:
+            error = await self.get_last_error()
+            raise MT5Error(f"Failed to get ticks from date: {error}")
+        return [
+            {
+                "time": int(t[0]),
+                "bid": float(t[1]),
+                "ask": float(t[2]),
+                "last": float(t[3]),
+                "volume": int(t[4]),
+                "time_msc": int(t[5]),
+                "flags": int(t[6]),
+                "volume_real": float(t[7]),
+            }
+            for t in ticks
+        ]
+
+    # -------------------------------------------------------------------------
+    # Market Depth (DOM / Order Book)
+    # -------------------------------------------------------------------------
+
+    async def market_book_add(self, symbol: str) -> bool:
+        """Subscribe to Market Depth (DOM) updates for a symbol."""
+        self._check_initialized()
+        await self._ensure_symbol_selected(symbol)
+
+        result = await asyncio.to_thread(mt5.market_book_add, symbol)
+        if not result:
+            error = await self.get_last_error()
+            raise MT5Error(f"Failed to subscribe to market depth for {symbol}: {error}")
+        return True
+
+    async def market_book_get(self, symbol: str) -> list[dict[str, Any]]:
+        """Get Market Depth (DOM) entries for a symbol."""
+        self._check_initialized()
+
+        entries = await asyncio.to_thread(mt5.market_book_get, symbol)
+        if entries is None:
+            error = await self.get_last_error()
+            raise MT5Error(f"Failed to get market depth for {symbol}: {error}")
+        return [e._asdict() for e in entries]
+
+    async def market_book_release(self, symbol: str) -> bool:
+        """Unsubscribe from Market Depth (DOM) updates for a symbol."""
+        self._check_initialized()
+
+        result = await asyncio.to_thread(mt5.market_book_release, symbol)
+        if not result:
+            error = await self.get_last_error()
+            raise MT5Error(f"Failed to unsubscribe from market depth for {symbol}: {error}")
+        return True
+
+    # -------------------------------------------------------------------------
+    # Symbol Selection
+    # -------------------------------------------------------------------------
+
+    async def select_symbol(self, symbol: str, enable: bool = True) -> bool:
+        """Add or remove a symbol from the MarketWatch window."""
+        self._check_initialized()
+
+        result = await asyncio.to_thread(mt5.symbol_select, symbol, enable)
+        if not result:
+            error = await self.get_last_error()
+            action = "select" if enable else "deselect"
+            raise MT5Error(f"Failed to {action} symbol {symbol}: {error}")
+        if enable:
+            self._selected_symbols.add(symbol)
+        else:
+            self._selected_symbols.discard(symbol)
+        return True
+
+    # -------------------------------------------------------------------------
     # History
     # -------------------------------------------------------------------------
 

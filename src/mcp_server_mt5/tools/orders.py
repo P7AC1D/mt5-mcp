@@ -73,6 +73,26 @@ ORDER_TOOLS: list[Tool] = [
         },
     ),
     Tool(
+        name="get_orders",
+        description=(
+            "Get all pending (unfilled) orders. Optionally filter by symbol or ticket number."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "symbol": {
+                    "type": "string",
+                    "description": "Filter by symbol name",
+                },
+                "ticket": {
+                    "type": "integer",
+                    "description": "Filter by specific order ticket",
+                },
+            },
+            "required": [],
+        },
+    ),
+    Tool(
         name="calculate_margin",
         description=(
             "Calculate the required margin for a potential order. "
@@ -246,6 +266,73 @@ ORDER_TOOLS: list[Tool] = [
             idempotentHint=False,
         ),
     ),
+    Tool(
+        name="cancel_order",
+        description=(
+            "⚠️ CANCEL a pending order by its ticket number. "
+            "Only works on unfilled pending orders (limit/stop orders)."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "order_id": {
+                    "type": "integer",
+                    "description": "Pending order ticket number to cancel",
+                },
+            },
+            "required": ["order_id"],
+        },
+        annotations=ToolAnnotations(
+            destructiveHint=True,
+            idempotentHint=False,
+        ),
+    ),
+    Tool(
+        name="modify_order",
+        description=(
+            "⚠️ MODIFY a pending order's price, stop loss, take profit, or expiration. "
+            "Only works on unfilled pending orders (limit/stop orders)."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "order_id": {
+                    "type": "integer",
+                    "description": "Pending order ticket number to modify",
+                },
+                "price": {
+                    "type": "number",
+                    "description": "New order price",
+                },
+                "sl": {
+                    "type": "number",
+                    "description": "New stop loss price (0 to remove)",
+                },
+                "tp": {
+                    "type": "number",
+                    "description": "New take profit price (0 to remove)",
+                },
+                "expiration": {
+                    "type": "string",
+                    "description": "New expiration date/time in ISO format (e.g., '2025-12-31T23:59:59')",
+                },
+            },
+            "required": ["order_id"],
+        },
+        annotations=ToolAnnotations(
+            destructiveHint=True,
+            idempotentHint=True,
+        ),
+    ),
+    Tool(
+        name="get_pending_orders_count",
+        description="Get the total number of pending (unfilled) orders.",
+        inputSchema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
 ]
 
 
@@ -256,7 +343,7 @@ async def handle_order_tool(
 ) -> Any:
     """Handle order-related tool calls."""
 
-    if name == "get_pending_orders":
+    if name in ("get_pending_orders", "get_orders"):
         orders = await client.get_orders(
             symbol=arguments.get("symbol"),
             ticket=arguments.get("ticket"),
@@ -351,6 +438,63 @@ async def handle_order_tool(
             "comment": result.get("comment"),
             "request_id": result.get("request_id"),
         }
+
+    if name == "cancel_order":
+        order_id = arguments["order_id"]
+        request = {
+            "action": mt5.TRADE_ACTION_REMOVE,
+            "order": order_id,
+        }
+        result = await client.send_order(request)
+        success = result.get("retcode") in (10008, 10009, 10010)
+        return {
+            "success": success,
+            "retcode": result.get("retcode"),
+            "retcode_description": RETURN_CODES.get(result.get("retcode"), "Unknown"),
+            "order": result.get("order"),
+            "comment": result.get("comment"),
+        }
+
+    if name == "modify_order":
+        order_id = arguments["order_id"]
+
+        # Fetch the order to get current values
+        orders = await client.get_orders(ticket=order_id)
+        if not orders:
+            raise ValueError(f"Pending order with ticket {order_id} not found")
+        order = orders[0]
+
+        request = {
+            "action": mt5.TRADE_ACTION_MODIFY,
+            "order": order_id,
+            "symbol": order.get("symbol"),
+            "type_time": mt5.ORDER_TIME_GTC,
+            "type_filling": mt5.ORDER_FILLING_IOC,
+            "price": float(arguments.get("price", order.get("price_open", 0.0))),
+            "sl": float(arguments.get("sl", order.get("sl", 0.0))),
+            "tp": float(arguments.get("tp", order.get("tp", 0.0))),
+        }
+
+        if "expiration" in arguments:
+            from datetime import datetime
+            request["expiration"] = int(
+                datetime.fromisoformat(arguments["expiration"]).timestamp()
+            )
+            request["type_time"] = mt5.ORDER_TIME_SPECIFIED
+
+        result = await client.send_order(request)
+        success = result.get("retcode") in (10008, 10009, 10010)
+        return {
+            "success": success,
+            "retcode": result.get("retcode"),
+            "retcode_description": RETURN_CODES.get(result.get("retcode"), "Unknown"),
+            "order": result.get("order"),
+            "comment": result.get("comment"),
+        }
+
+    if name == "get_pending_orders_count":
+        count = await client.get_orders_total()
+        return {"count": count}
 
     raise ValueError(f"Unknown order tool: {name}")
 
