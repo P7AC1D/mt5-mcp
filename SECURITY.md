@@ -4,7 +4,7 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
+| 0.2.x   | :white_check_mark: |
 
 ## Reporting a Vulnerability
 
@@ -39,19 +39,34 @@ If you discover a security vulnerability in this project, please report it respo
 
 ### Network Security
 
-- **STDIO transport** (default): Communication stays local to your machine — no network exposure
-- **HTTP transport**: When using `--transport http`, the server listens on the network
-  - Bind to `127.0.0.1` instead of `0.0.0.0` for local-only access
-  - Use firewall rules to restrict access when binding to all interfaces
-  - Consider placing behind a reverse proxy with TLS for production use
-  - The HTTP transport does not include authentication — secure the network layer
+- STDIO uses local process streams. HTTP binds to loopback by default.
+- Non-loopback HTTP requires an explicitly provisioned bearer token and allowed
+  Host names. Configure Origin allowlists; do not disable DNS-rebinding protection.
+- Use TLS on remote links. Shared bearer-token mode is intended for preconfigured
+  private clients, not a claim of implementing MCP OAuth. Use an OAuth gateway
+  when the client requires OAuth discovery/authorization.
+- `/healthz` exposes only liveness/version; other endpoints require a token when
+  one is configured. No automatic CORS wildcard or firewall opening is provided.
+- Legacy SSE is opt-in and shares authentication, body limits, bounded sessions,
+  and a maximum connection lifetime with the primary transport.
 
 ### Trading Safety
 
-- Always test with a **demo account** before using real funds
-- The `send_order` tool is annotated with `destructiveHint=True` to prompt confirmation
-- Review all trade parameters before confirming execution
-- Consider implementing additional safeguards (position limits, daily loss limits) for automated use
+- `destructiveHint` and `readOnlyHint` are client hints. They are not an
+  authorization mechanism or server-enforced trade confirmation.
+- Each server must exclusively own one terminal/account. A process lock protects
+  only processes using the same lock path; it cannot prevent a human or another
+  application changing the terminal. Account checks reduce this risk but cannot
+  eliminate a GUI/native race after the final check.
+- Never retry a dispatched trading mutation because of timeout, cancellation,
+  HTTP disconnect or an unknown outcome. Reconcile broker orders/deals first.
+- Keep operation journals private: they contain trading results, though no request
+  arguments or login passwords. Preserve the shared journal across upgrades.
+- A native hang cannot safely be cancelled by Python. New work is rejected while
+  overdue, and a shutdown timeout retains the process lock until process exit.
+  Restart only after the old process is gone and uncertain outcomes are reviewed.
+- Account switching is disabled by default. Prefer separate terminals/processes
+  for separate accounts. The bridge does not implement per-client permissions.
 
 ## Dependency Security
 
@@ -60,7 +75,6 @@ This project uses:
 - `mcp` SDK for the Model Context Protocol
 - `MetaTrader5` official Python package
 
-Keep dependencies updated to receive security patches:
-```bash
-uv sync --upgrade
-```
+Dependencies are committed in `uv.lock`. Review security updates deliberately,
+regenerate the lock, and rerun the complete suite before deployment; normal
+installs use `uv sync --locked`. Do not upgrade dependencies implicitly at startup.

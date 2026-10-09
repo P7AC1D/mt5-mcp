@@ -4,8 +4,8 @@ from collections import namedtuple
 
 import pytest
 
+from mcp_server_mt5.resources import handle_resource_read, register_resources
 from mcp_server_mt5.tools import get_all_tools, handle_tool_call
-from mcp_server_mt5.resources import register_resources, handle_resource_read
 
 
 class TestToolRegistration:
@@ -59,20 +59,24 @@ class TestToolRegistration:
         send_order = next(t for t in tools if t.name == "send_order")
 
         assert send_order.annotations is not None
-        assert send_order.annotations.destructiveHint is True
-        assert send_order.annotations.idempotentHint is False
+        assert send_order.annotations.destructive_hint is True
+        assert send_order.annotations.idempotent_hint is False
 
     def test_destructive_tools_have_annotations(self):
         """Test that all destructive tools are properly annotated."""
         tools = get_all_tools()
         destructive_tool_names = [
-            "send_order", "close_position", "modify_position",
-            "cancel_order", "modify_order", "login",
+            "send_order",
+            "close_position",
+            "modify_position",
+            "cancel_order",
+            "modify_order",
+            "login",
         ]
         for tool_name in destructive_tool_names:
             tool = next(t for t in tools if t.name == tool_name)
             assert tool.annotations is not None, f"{tool_name} missing annotations"
-            assert tool.annotations.destructiveHint is True, f"{tool_name} not marked destructive"
+            assert tool.annotations.destructive_hint is True, f"{tool_name} not marked destructive"
 
     def test_tools_have_descriptions(self):
         """Test that all tools have descriptions."""
@@ -87,8 +91,8 @@ class TestToolRegistration:
         tools = get_all_tools()
 
         for tool in tools:
-            assert tool.inputSchema is not None, f"Tool {tool.name} missing inputSchema"
-            assert tool.inputSchema.get("type") == "object"
+            assert tool.input_schema is not None, f"Tool {tool.name} missing input_schema"
+            assert tool.input_schema.get("type") == "object"
 
 
 class TestResourceRegistration:
@@ -102,8 +106,7 @@ class TestResourceRegistration:
 
         assert "mt5://account/info" in uris
         assert "mt5://symbols" in uris
-        assert "mt5://symbols/%7Bsymbol%7D/tick" in uris  # URL-encoded {symbol}
-        assert "mt5://symbols/%7Bsymbol%7D/info" in uris
+        assert len(uris) == 4
         assert "mt5://positions" in uris
         assert "mt5://orders" in uris
 
@@ -114,7 +117,7 @@ class TestResourceRegistration:
         for resource in resources:
             assert resource.name, f"Resource {resource.uri} missing name"
             assert resource.description, f"Resource {resource.uri} missing description"
-            assert resource.mimeType == "application/json"
+            assert resource.mime_type == "application/json"
 
 
 class TestToolHandling:
@@ -146,7 +149,9 @@ class TestClosePositionTool:
     """Tests for close_position tool."""
 
     @pytest.mark.asyncio
-    async def test_close_buy_position(self, mock_mt5_client, mock_position, mock_tick, mock_symbol_info):
+    async def test_close_buy_position(
+        self, mock_mt5_client, mock_position, mock_tick, mock_symbol_info
+    ):
         """Test closing a BUY position (should sell at bid)."""
         client, mock_mt5 = mock_mt5_client
         mock_mt5.positions_get.return_value = [mock_position]  # type=0 (BUY)
@@ -158,8 +163,15 @@ class TestClosePositionTool:
             ["retcode", "order", "deal", "volume", "price", "bid", "ask", "comment", "request_id"],
         )
         mock_mt5.order_send.return_value = OrderResult(
-            retcode=10009, order=999, deal=888, volume=0.1,
-            price=1.10000, bid=1.10000, ask=1.10010, comment="", request_id=1,
+            retcode=10009,
+            order=999,
+            deal=888,
+            volume=0.1,
+            price=1.10000,
+            bid=1.10000,
+            ask=1.10010,
+            comment="",
+            request_id=1,
         )
 
         result = await handle_tool_call(client, "close_position", {"ticket": 123456})
@@ -172,7 +184,9 @@ class TestClosePositionTool:
         assert sent_request["position"] == 123456
 
     @pytest.mark.asyncio
-    async def test_close_sell_position(self, mock_mt5_client, mock_sell_position, mock_tick, mock_symbol_info):
+    async def test_close_sell_position(
+        self, mock_mt5_client, mock_sell_position, mock_tick, mock_symbol_info
+    ):
         """Test closing a SELL position (should buy at ask)."""
         client, mock_mt5 = mock_mt5_client
         mock_mt5.positions_get.return_value = [mock_sell_position]  # type=1 (SELL)
@@ -184,8 +198,15 @@ class TestClosePositionTool:
             ["retcode", "order", "deal", "volume", "price", "bid", "ask", "comment", "request_id"],
         )
         mock_mt5.order_send.return_value = OrderResult(
-            retcode=10009, order=999, deal=888, volume=0.5,
-            price=1.10010, bid=1.10000, ask=1.10010, comment="", request_id=1,
+            retcode=10009,
+            order=999,
+            deal=888,
+            volume=0.5,
+            price=1.10010,
+            bid=1.10000,
+            ask=1.10010,
+            comment="",
+            request_id=1,
         )
 
         result = await handle_tool_call(client, "close_position", {"ticket": 789012})
@@ -196,7 +217,9 @@ class TestClosePositionTool:
         assert sent_request["price"] == mock_tick.ask
 
     @pytest.mark.asyncio
-    async def test_close_position_partial(self, mock_mt5_client, mock_position, mock_tick, mock_symbol_info):
+    async def test_close_position_partial(
+        self, mock_mt5_client, mock_position, mock_tick, mock_symbol_info
+    ):
         """Test partial close of a position."""
         client, mock_mt5 = mock_mt5_client
         mock_mt5.positions_get.return_value = [mock_position]
@@ -208,8 +231,15 @@ class TestClosePositionTool:
             ["retcode", "order", "deal", "volume", "price", "bid", "ask", "comment", "request_id"],
         )
         mock_mt5.order_send.return_value = OrderResult(
-            retcode=10009, order=999, deal=888, volume=0.05,
-            price=1.10000, bid=1.10000, ask=1.10010, comment="", request_id=1,
+            retcode=10009,
+            order=999,
+            deal=888,
+            volume=0.05,
+            price=1.10000,
+            bid=1.10000,
+            ask=1.10010,
+            comment="",
+            request_id=1,
         )
 
         result = await handle_tool_call(
@@ -224,7 +254,7 @@ class TestClosePositionTool:
     async def test_close_position_not_found(self, mock_mt5_client):
         """Test closing a position that doesn't exist."""
         client, mock_mt5 = mock_mt5_client
-        mock_mt5.positions_get.return_value = None
+        mock_mt5.positions_get.return_value = ()
 
         with pytest.raises(ValueError, match="not found"):
             await handle_tool_call(client, "close_position", {"ticket": 999999})
@@ -244,8 +274,15 @@ class TestModifyPositionTool:
             ["retcode", "order", "deal", "volume", "price", "bid", "ask", "comment", "request_id"],
         )
         mock_mt5.order_send.return_value = OrderResult(
-            retcode=10009, order=0, deal=0, volume=0,
-            price=0, bid=0, ask=0, comment="", request_id=1,
+            retcode=10009,
+            order=0,
+            deal=0,
+            volume=0,
+            price=0,
+            bid=0,
+            ask=0,
+            comment="",
+            request_id=1,
         )
 
         result = await handle_tool_call(
@@ -272,8 +309,15 @@ class TestCancelOrderTool:
             ["retcode", "order", "deal", "volume", "price", "bid", "ask", "comment", "request_id"],
         )
         mock_mt5.order_send.return_value = OrderResult(
-            retcode=10009, order=555, deal=0, volume=0,
-            price=0, bid=0, ask=0, comment="", request_id=1,
+            retcode=10009,
+            order=555,
+            deal=0,
+            volume=0,
+            price=0,
+            bid=0,
+            ask=0,
+            comment="",
+            request_id=1,
         )
 
         result = await handle_tool_call(client, "cancel_order", {"order_id": 555})
@@ -293,11 +337,21 @@ class TestModifyOrderTool:
         client, mock_mt5 = mock_mt5_client
 
         from tests.conftest import OrderInfo
+
         mock_order = OrderInfo(
-            ticket=555, symbol="EURUSD", type=2, volume_initial=0.1,
-            volume_current=0.1, price_open=1.08000, price_current=1.10000,
-            sl=1.07000, tp=1.09000, time_setup=0, time_expiration=0,
-            comment="", magic=0,
+            ticket=555,
+            symbol="EURUSD",
+            type=2,
+            volume_initial=0.1,
+            volume_current=0.1,
+            price_open=1.08000,
+            price_current=1.10000,
+            sl=1.07000,
+            tp=1.09000,
+            time_setup=0,
+            time_expiration=0,
+            comment="",
+            magic=0,
         )
         mock_mt5.orders_get.return_value = [mock_order]
 
@@ -306,12 +360,20 @@ class TestModifyOrderTool:
             ["retcode", "order", "deal", "volume", "price", "bid", "ask", "comment", "request_id"],
         )
         mock_mt5.order_send.return_value = OrderResult(
-            retcode=10009, order=555, deal=0, volume=0,
-            price=0, bid=0, ask=0, comment="", request_id=1,
+            retcode=10009,
+            order=555,
+            deal=0,
+            volume=0,
+            price=0,
+            bid=0,
+            ask=0,
+            comment="",
+            request_id=1,
         )
 
         result = await handle_tool_call(
-            client, "modify_order",
+            client,
+            "modify_order",
             {"order_id": 555, "price": 1.07500, "sl": 1.06500, "tp": 1.08500},
         )
 
@@ -326,12 +388,10 @@ class TestModifyOrderTool:
     async def test_modify_order_not_found(self, mock_mt5_client):
         """Test modifying a non-existent order."""
         client, mock_mt5 = mock_mt5_client
-        mock_mt5.orders_get.return_value = None
+        mock_mt5.orders_get.return_value = ()
 
         with pytest.raises(ValueError, match="not found"):
-            await handle_tool_call(
-                client, "modify_order", {"order_id": 999999, "price": 1.0}
-            )
+            await handle_tool_call(client, "modify_order", {"order_id": 999999, "price": 1.0})
 
 
 class TestMarketDepthTools:
@@ -344,9 +404,7 @@ class TestMarketDepthTools:
         mock_mt5.symbol_info.return_value = mock_symbol_info
         mock_mt5.market_book_add.return_value = True
 
-        result = await handle_tool_call(
-            client, "market_book_subscribe", {"symbol": "EURUSD"}
-        )
+        result = await handle_tool_call(client, "market_book_subscribe", {"symbol": "EURUSD"})
 
         assert result["subscribed"] is True
         assert result["symbol"] == "EURUSD"
@@ -357,9 +415,7 @@ class TestMarketDepthTools:
         client, mock_mt5 = mock_mt5_client
         mock_mt5.market_book_get.return_value = mock_book_entries
 
-        result = await handle_tool_call(
-            client, "market_book_get", {"symbol": "EURUSD"}
-        )
+        result = await handle_tool_call(client, "market_book_get", {"symbol": "EURUSD"})
 
         assert result["count"] == 4
         assert result["entries"][0]["type"] == "BUY"
@@ -371,9 +427,7 @@ class TestMarketDepthTools:
         client, mock_mt5 = mock_mt5_client
         mock_mt5.market_book_release.return_value = True
 
-        result = await handle_tool_call(
-            client, "market_book_unsubscribe", {"symbol": "EURUSD"}
-        )
+        result = await handle_tool_call(client, "market_book_unsubscribe", {"symbol": "EURUSD"})
 
         assert result["unsubscribed"] is True
 
@@ -404,7 +458,8 @@ class TestLoginTool:
         mock_mt5.login.return_value = True
 
         result = await handle_tool_call(
-            client, "login",
+            client,
+            "login",
             {"login": 99999999, "password": "pass", "server": "Demo"},
         )
 
@@ -508,9 +563,7 @@ class TestResourceHandling:
         assert result["balance"] == 10000.0
 
     @pytest.mark.asyncio
-    async def test_handle_symbol_tick_resource(
-        self, mock_mt5_client, mock_tick, mock_symbol_info
-    ):
+    async def test_handle_symbol_tick_resource(self, mock_mt5_client, mock_tick, mock_symbol_info):
         """Test reading symbol tick resource."""
         client, mock_mt5 = mock_mt5_client
         mock_mt5.symbol_info.return_value = mock_symbol_info

@@ -51,8 +51,10 @@ htmlcov/
 # mypy
 .mypy_cache/
 
-# uv
-uv.lock
+# Runtime state (may include financial audit data)
+.runtime/
+*.log
+*.log.*
 
 # OS
 .DS_Store

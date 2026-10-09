@@ -28,7 +28,7 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
 
 ### Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - [uv](https://docs.astral.sh/uv/) (recommended) or pip
 - MetaTrader 5 terminal installed (Windows only)
 - An MT5 demo account for testing
@@ -41,7 +41,7 @@ git clone https://github.com/<your-username>/mt5-mcp.git
 cd mt5-mcp
 
 # Install with dev dependencies
-uv sync --extra dev
+uv sync --locked --extra dev
 ```
 
 ### Running Tests
@@ -86,7 +86,7 @@ uv run mcp-server-mt5
 ### Submitting Code
 
 1. **Create an issue first** for significant changes to discuss the approach
-2. **Branch from `main`** — use descriptive branch names:
+2. **Branch from `master`** — use descriptive branch names:
    - `feature/add-trailing-stop` for new features
    - `fix/order-timeout-handling` for bug fixes
    - `docs/update-api-reference` for documentation

@@ -3,67 +3,53 @@
 import argparse
 import asyncio
 import logging
+from logging.handlers import RotatingFileHandler
 
-from .server import serve, serve_http
-
-__version__ = "0.1.0"
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+__version__ = "0.2.0"
 
 
 def main() -> None:
-    """Main entry point for the MCP MT5 server."""
+    from .config import get_settings
+    from .server import serve, serve_http
+
     parser = argparse.ArgumentParser(
-        description="MCP Server for MetaTrader 5 trading platform",
+        description="MCP Server for MetaTrader 5",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
+    parser.add_argument("--transport", choices=["stdio", "http"], default="stdio")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--mt5-path", default=None)
     parser.add_argument(
-        "--transport",
-        type=str,
-        choices=["stdio", "http"],
-        default="stdio",
-        help="Transport protocol: stdio (local) or http (remote/network)",
+        "--env-file", default=None, help="Explicit .env path; otherwise .env in working directory"
     )
     parser.add_argument(
-        "--host",
-        type=str,
-        default="0.0.0.0",
-        help="Host to bind HTTP server (use 0.0.0.0 for all interfaces)",
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=8000,
-        help="Port for HTTP server",
-    )
-    parser.add_argument(
-        "--mt5-path",
-        type=str,
-        default=None,
-        help="Path to MT5 terminal executable (overrides MT5_PATH env var)",
-    )
-    parser.add_argument(
-        "-v", "--verbose",
+        "--legacy-sse",
         action="store_true",
-        help="Enable verbose logging",
+        help="Also enable legacy /sse and /messages/ compatibility",
     )
+    parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
-
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
-
+    settings = get_settings(args.env_file)
+    if args.legacy_sse:
+        settings.legacy_sse = True
+    handlers: list[logging.Handler] = [logging.StreamHandler()]
+    if settings.log_file:
+        settings.log_file.parent.mkdir(parents=True, exist_ok=True)
+        handlers.append(
+            RotatingFileHandler(
+                settings.log_file, maxBytes=5_000_000, backupCount=5, encoding="utf-8"
+            )
+        )
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        handlers=handlers,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        force=True,
+    )
+    for name in ("httpx", "httpx2", "httpcore", "httpcore2", "mcp"):
+        logging.getLogger(name).setLevel(logging.WARNING)
     if args.transport == "http":
-        asyncio.run(serve_http(
-            host=args.host,
-            port=args.port,
-            mt5_path_override=args.mt5_path,
-        ))
+        asyncio.run(serve_http(args.host, args.port, args.mt5_path, settings))
     else:
-        asyncio.run(serve(mt5_path_override=args.mt5_path))
-
-
-if __name__ == "__main__":
-    main()
+        asyncio.run(serve(args.mt5_path, settings))

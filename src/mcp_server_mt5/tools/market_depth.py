@@ -21,7 +21,7 @@ MARKET_DEPTH_TOOLS: list[Tool] = [
             "Subscribe to Market Depth (DOM / order book) updates for a symbol. "
             "Must be called before market_book_get. Unsubscribe when no longer needed."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "symbol": {
@@ -39,7 +39,7 @@ MARKET_DEPTH_TOOLS: list[Tool] = [
             "Returns price levels with volumes and types (BUY/SELL). "
             "Requires a prior market_book_subscribe call for the symbol."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "symbol": {
@@ -56,7 +56,7 @@ MARKET_DEPTH_TOOLS: list[Tool] = [
             "Unsubscribe from Market Depth (DOM / order book) updates for a symbol. "
             "Call this when you no longer need depth data to free resources."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "symbol": {

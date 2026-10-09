@@ -1,11 +1,12 @@
 """Historical trading data tools."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from mcp.types import Tool
 
 from ..mt5_client import MT5Client
+from ..validation import parse_utc
 
 HISTORY_TOOLS: list[Tool] = [
     Tool(
@@ -14,7 +15,7 @@ HISTORY_TOOLS: list[Tool] = [
             "Get historical orders for a date range. Includes filled, canceled, and expired orders. "
             "Can filter by symbol, order ticket, or position ticket."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "date_from": {
@@ -47,7 +48,7 @@ HISTORY_TOOLS: list[Tool] = [
             "Get historical deals/trades for a date range. Deals are the actual executed trades "
             "(entries, exits, balance operations). Can filter by symbol, deal ticket, or position ticket."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "date_from": {
@@ -80,7 +81,7 @@ HISTORY_TOOLS: list[Tool] = [
             "Get the total number of historical orders in a date range. "
             "Defaults to the last 30 days if no dates are provided."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "date_from": {
@@ -101,7 +102,7 @@ HISTORY_TOOLS: list[Tool] = [
             "Get the total number of historical deals in a date range. "
             "Defaults to the last 30 days if no dates are provided."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "date_from": {
@@ -121,7 +122,7 @@ HISTORY_TOOLS: list[Tool] = [
 
 def _get_default_date_range() -> tuple[datetime, datetime]:
     """Get default date range (last 30 days)."""
-    date_to = datetime.now()
+    date_to = datetime.now(UTC)
     date_from = date_to - timedelta(days=30)
     return date_from, date_to
 
@@ -130,8 +131,8 @@ def _parse_dates(arguments: dict[str, Any]) -> tuple[datetime, datetime]:
     """Parse date arguments or use defaults."""
     if "date_from" in arguments and "date_to" in arguments:
         return (
-            datetime.fromisoformat(arguments["date_from"]),
-            datetime.fromisoformat(arguments["date_to"]),
+            parse_utc(arguments["date_from"]),
+            parse_utc(arguments["date_to"]),
         )
     return _get_default_date_range()
 
@@ -158,7 +159,7 @@ def _get_deal_type_name(deal_type: int | None) -> str:
         16: "DIVIDEND_FRANKED",
         17: "TAX",
     }
-    return type_names.get(deal_type, f"UNKNOWN({deal_type})")
+    return type_names.get(deal_type if deal_type is not None else -1, f"UNKNOWN({deal_type})")
 
 
 def _get_deal_entry_name(entry: int | None) -> str:
@@ -169,7 +170,7 @@ def _get_deal_entry_name(entry: int | None) -> str:
         2: "INOUT",
         3: "OUT_BY",
     }
-    return entry_names.get(entry, f"UNKNOWN({entry})")
+    return entry_names.get(entry if entry is not None else -1, f"UNKNOWN({entry})")
 
 
 def _get_order_state_name(state: int | None) -> str:
@@ -186,7 +187,7 @@ def _get_order_state_name(state: int | None) -> str:
         8: "REQUEST_MODIFY",
         9: "REQUEST_CANCEL",
     }
-    return state_names.get(state, f"UNKNOWN({state})")
+    return state_names.get(state if state is not None else -1, f"UNKNOWN({state})")
 
 
 async def handle_history_tool(

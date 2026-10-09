@@ -14,7 +14,7 @@ ACCOUNT_TOOLS: list[Tool] = [
             "margin, free margin, margin level, profit/loss, and account settings. "
             "Use this to check account status before placing trades."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {},
             "required": [],
@@ -26,7 +26,7 @@ ACCOUNT_TOOLS: list[Tool] = [
             "Get MT5 terminal information including build number, connection status, "
             "trade permissions, DLL usage, paths, and company/server details."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {},
             "required": [],
@@ -38,7 +38,7 @@ ACCOUNT_TOOLS: list[Tool] = [
             "⚠️ LOG IN to a different trading account. Switches the active trading account "
             "on the connected MT5 terminal. Requires account number, password, and server."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "login": {
@@ -61,8 +61,8 @@ ACCOUNT_TOOLS: list[Tool] = [
             "required": ["login", "password", "server"],
         },
         annotations=ToolAnnotations(
-            destructiveHint=True,
-            idempotentHint=False,
+            destructive_hint=True,
+            idempotent_hint=False,
         ),
     ),
 ]

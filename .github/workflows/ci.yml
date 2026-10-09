@@ -1,52 +1,33 @@
 name: CI
-
 on:
   push:
-    branches: [main]
+    branches: [master, main]
   pull_request:
-    branches: [main]
-
+    branches: [master, main]
 permissions:
   contents: read
-
 jobs:
   test:
-    runs-on: windows-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
-
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.11', '3.12', '3.13']
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        run: uv sync --extra dev
-
-      - name: Run tests
-        run: uv run pytest -v
-
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --extra dev --python ${{ matrix.python-version }}
+      # Tests inject fake native calls, including on Windows. Never send orders.
+      - run: uv run --locked --python ${{ matrix.python-version }} pytest -v
+      - if: runner.os == 'Windows'
+        shell: powershell
+        run: ./scripts/windows/Test-ScriptSyntax.ps1
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Set up Python
-        run: uv python install 3.12
-
-      - name: Install dependencies
-        run: uv sync --extra dev
-
-      - name: Check formatting with ruff
-        run: uv run ruff format --check src/ tests/
-
-      - name: Lint with ruff
-        run: uv run ruff check src/ tests/
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --extra dev --python 3.12
+      - run: uv run --locked ruff format --check src/ tests/
+      - run: uv run --locked ruff check src/ tests/
+      - run: uv run --locked pyright

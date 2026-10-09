@@ -2,10 +2,11 @@
 
 from typing import Any
 
-import MetaTrader5 as mt5
 from mcp.types import Tool, ToolAnnotations
 
+from .. import constants as mt5
 from ..mt5_client import MT5Client
+from ..validation import parse_utc
 
 # Order type mapping
 ORDER_TYPES = {
@@ -57,7 +58,7 @@ ORDER_TOOLS: list[Tool] = [
         description=(
             "Get all pending (unfilled) orders. Optionally filter by symbol or ticket number."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "symbol": {
@@ -77,7 +78,7 @@ ORDER_TOOLS: list[Tool] = [
         description=(
             "Get all pending (unfilled) orders. Optionally filter by symbol or ticket number."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "symbol": {
@@ -98,7 +99,7 @@ ORDER_TOOLS: list[Tool] = [
             "Calculate the required margin for a potential order. "
             "Use this to check if you have sufficient margin before placing a trade."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "action": {
@@ -128,7 +129,7 @@ ORDER_TOOLS: list[Tool] = [
             "Calculate the potential profit/loss for a trade at a given exit price. "
             "Use this to assess risk/reward before entering a position."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "action": {
@@ -162,7 +163,7 @@ ORDER_TOOLS: list[Tool] = [
             "Validate an order before sending it. Returns margin requirements and "
             "checks if the order would be accepted. Use this before send_order."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "symbol": {
@@ -201,7 +202,7 @@ ORDER_TOOLS: list[Tool] = [
             "Use check_order first to validate. Supports market orders, limit orders, and stop orders. "
             "Can also modify existing positions (SL/TP) or close positions."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "action": {
@@ -262,8 +263,8 @@ ORDER_TOOLS: list[Tool] = [
         },
         # Mark as destructive - clients should prompt for confirmation
         annotations=ToolAnnotations(
-            destructiveHint=True,
-            idempotentHint=False,
+            destructive_hint=True,
+            idempotent_hint=False,
         ),
     ),
     Tool(
@@ -272,7 +273,7 @@ ORDER_TOOLS: list[Tool] = [
             "⚠️ CANCEL a pending order by its ticket number. "
             "Only works on unfilled pending orders (limit/stop orders)."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "order_id": {
@@ -283,8 +284,8 @@ ORDER_TOOLS: list[Tool] = [
             "required": ["order_id"],
         },
         annotations=ToolAnnotations(
-            destructiveHint=True,
-            idempotentHint=False,
+            destructive_hint=True,
+            idempotent_hint=False,
         ),
     ),
     Tool(
@@ -293,7 +294,7 @@ ORDER_TOOLS: list[Tool] = [
             "⚠️ MODIFY a pending order's price, stop loss, take profit, or expiration. "
             "Only works on unfilled pending orders (limit/stop orders)."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "order_id": {
@@ -320,14 +321,14 @@ ORDER_TOOLS: list[Tool] = [
             "required": ["order_id"],
         },
         annotations=ToolAnnotations(
-            destructiveHint=True,
-            idempotentHint=True,
+            destructive_hint=True,
+            idempotent_hint=True,
         ),
     ),
     Tool(
         name="get_pending_orders_count",
         description="Get the total number of pending (unfilled) orders.",
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {},
             "required": [],
@@ -476,10 +477,7 @@ async def handle_order_tool(
         }
 
         if "expiration" in arguments:
-            from datetime import datetime
-            request["expiration"] = int(
-                datetime.fromisoformat(arguments["expiration"]).timestamp()
-            )
+            request["expiration"] = int(parse_utc(arguments["expiration"]).timestamp())
             request["type_time"] = mt5.ORDER_TIME_SPECIFIED
 
         result = await client.send_order(request)
@@ -511,7 +509,7 @@ def _get_order_type_name(order_type: int | None) -> str:
         6: "BUY_STOP_LIMIT",
         7: "SELL_STOP_LIMIT",
     }
-    return type_names.get(order_type, f"UNKNOWN({order_type})")
+    return type_names.get(order_type if order_type is not None else -1, f"UNKNOWN({order_type})")
 
 
 def _build_order_request(arguments: dict[str, Any], for_check: bool) -> dict[str, Any]:
@@ -535,23 +533,23 @@ def _build_order_request(arguments: dict[str, Any], for_check: bool) -> dict[str
     }
 
     # Add price if specified
-    if "price" in arguments and arguments["price"]:
+    if arguments.get("price"):
         request["price"] = float(arguments["price"])
 
     # Add stop loss if specified
-    if "sl" in arguments and arguments["sl"]:
+    if arguments.get("sl"):
         request["sl"] = float(arguments["sl"])
 
     # Add take profit if specified
-    if "tp" in arguments and arguments["tp"]:
+    if arguments.get("tp"):
         request["tp"] = float(arguments["tp"])
 
     # Add position ticket for modifications
-    if "position" in arguments and arguments["position"]:
+    if arguments.get("position"):
         request["position"] = int(arguments["position"])
 
     # Add order ticket for pending order modifications
-    if "order" in arguments and arguments["order"]:
+    if arguments.get("order"):
         request["order"] = int(arguments["order"])
 
     return request
