@@ -1,5 +1,10 @@
 # MCP Server for MetaTrader 5
 
+For boot startup and failure recovery through the native Windows Service Control
+Manager, see [Windows service deployment](docs/windows-service.md). Registration,
+service-identity/profile provisioning and Session 0 acceptance are explicit steps;
+the installer does not start MT5 automatically during setup.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![MCP](https://img.shields.io/badge/MCP-compatible-green.svg)](https://modelcontextprotocol.io/)

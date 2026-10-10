@@ -308,6 +308,7 @@ def create_http_app(
         )
     if settings.http_token:
         app.add_middleware(BearerMiddleware, token=settings.http_token.get_secret_value())
+    app.state.mt5_server = server
     return app
 
 

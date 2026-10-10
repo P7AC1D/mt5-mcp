@@ -1,5 +1,10 @@
 # Windows deployment and recovery
 
+For an actual boot-starting SCM service, see [Native Windows service](windows-service.md).
+The interactive-task scripts below remain a separate deployment option. Session 0
+MT5 compatibility must be validated on the intended machine; these task scripts
+are not evidence that native service operation is impossible.
+
 These scripts prepare a single-user MT5 MCP HTTP installation with immutable,
 versioned application directories and shared runtime state. They are deployment
 artifacts, not evidence that a Windows terminal has been tested or deployed.

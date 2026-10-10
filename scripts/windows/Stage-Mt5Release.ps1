@@ -48,10 +48,12 @@ foreach ($relative in @('src\mcp_server_mt5', 'scripts\windows')) {
         Copy-Item -LiteralPath $_.FullName -Destination $destination
     }
 }
-$docs = Join-Path $SourcePath 'docs\windows-deployment.md'
-if (Test-Path -LiteralPath $docs -PathType Leaf) {
-    New-Item -ItemType Directory -Path (Join-Path $release 'docs') -Force | Out-Null
-    Copy-Item -LiteralPath $docs -Destination (Join-Path $release 'docs\windows-deployment.md')
+foreach ($name in @('windows-deployment.md', 'windows-service.md')) {
+    $docs = Join-Path (Join-Path $SourcePath 'docs') $name
+    if (Test-Path -LiteralPath $docs -PathType Leaf) {
+        New-Item -ItemType Directory -Path (Join-Path $release 'docs') -Force | Out-Null
+        Copy-Item -LiteralPath $docs -Destination (Join-Path (Join-Path $release 'docs') $name)
+    }
 }
 # A venv is not relocatable. Build directly at its final, unique release path.
 $previousEnvironment = $env:UV_PROJECT_ENVIRONMENT
