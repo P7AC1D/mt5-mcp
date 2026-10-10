@@ -237,7 +237,8 @@ async def test_account_switch_disabled_by_default(tmp_path):
 async def test_journal_failure_prevents_native_dispatch(tmp_path):
     owner = TerminalOwner(queue_size=1, timeout=1, journal_file=tmp_path)
     called = Mock()
-    with pytest.raises(IsADirectoryError):
+    # Windows reports PermissionError for opening a directory as a file.
+    with pytest.raises((IsADirectoryError, PermissionError)):
         await owner.submit(called, name="send_order", mutating=True)
     called.assert_not_called()
     await owner.close(lambda: None, 1)

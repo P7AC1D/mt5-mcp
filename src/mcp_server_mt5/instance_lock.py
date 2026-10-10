@@ -24,10 +24,6 @@ class InstanceLock:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         stream = self.path.open("a+b")
         stream.seek(0)
-        if stream.read(1) == b"":
-            stream.write(b"0")
-            stream.flush()
-        stream.seek(0)
         try:
             if os.name == "nt":
                 import msvcrt
@@ -37,6 +33,12 @@ class InstanceLock:
                 import fcntl
 
                 fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            # Windows permits locking past EOF. Initialize only AFTER acquiring
+            # the byte lock: reading another owner's locked byte raises before
+            # the normal duplicate-lock handler and can leak the open handle.
+            if os.fstat(stream.fileno()).st_size == 0:
+                stream.write(b"0")
+                stream.flush()
         except OSError:
             stream.close()
             raise RuntimeError(f"Another server holds the instance lock: {self.path}") from None

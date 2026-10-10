@@ -261,14 +261,19 @@ def test_retained_instance_lock_survives_app_garbage_collection(tmp_path):
 
 async def test_unexpected_probe_failure_cannot_skip_shutdown(tmp_path, api):
     terminal = api.terminal_info.return_value
-    api.terminal_info.side_effect = [terminal, RuntimeError("fake native failure"), terminal]
+    def terminal_info():
+        if api.terminal_info.call_count == 1:
+            return terminal
+        raise RuntimeError("fake native failure")
+
+    api.terminal_info.side_effect = terminal_info
     server = create_server(
         configuration(tmp_path, readiness_interval=0.02),
         client_factory=lambda s: MT5Client(s, api=api),
     )
     async with server.lifespan(server) as client:
         async with asyncio.timeout(1):
-            while api.terminal_info.call_count < 2:
+            while client.status["ready"]:
                 await asyncio.sleep(0.005)
         assert not client.status["ready"]
     api.shutdown.assert_called_once()
