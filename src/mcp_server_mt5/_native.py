@@ -502,8 +502,12 @@ class _NativeClient:
                 "MetaTrader5 requires Windows x86-64 and a configured terminal.",
                 kind="platform_unavailable",
             )
+        fn = getattr(self.api, name)
         try:
-            result = getattr(self.api, name)(*args, **kwargs)
+            # MetaTrader5's C functions treat an empty keyword dict as keywords
+            # present: order_send(request, **{}) fails with "Unnamed arguments not
+            # allowed" without reaching the terminal. Pass keywords only when given.
+            result = fn(*args, **kwargs) if kwargs else fn(*args)
         except Exception:
             if name == "order_send":
                 raise MT5Error(
