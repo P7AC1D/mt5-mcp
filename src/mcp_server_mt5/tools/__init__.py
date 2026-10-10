@@ -12,12 +12,26 @@ from .market_depth import MARKET_DEPTH_TOOLS, handle_market_depth_tool
 from .orders import ORDER_TOOLS, handle_order_tool
 from .positions import POSITION_TOOLS, handle_position_tool
 
+MUTATING_TOOLS = {
+    "login",
+    "send_order",
+    "cancel_order",
+    "modify_order",
+    "close_position",
+    "modify_position",
+}
+STATEFUL_TOOLS = MUTATING_TOOLS | {
+    "select_symbol",
+    "market_book_subscribe",
+    "market_book_unsubscribe",
+}
+
 __all__ = ["get_all_tools", "handle_tool_call"]
 
 
 def get_all_tools() -> list[Tool]:
     """Get all registered MT5 tools."""
-    return [
+    tools = [
         *ACCOUNT_TOOLS,
         *MARKET_DATA_TOOLS,
         *MARKET_DEPTH_TOOLS,
@@ -25,6 +39,17 @@ def get_all_tools() -> list[Tool]:
         *ORDER_TOOLS,
         *HISTORY_TOOLS,
     ]
+    for tool in tools:
+        tool.input_schema["additionalProperties"] = False
+        tool.output_schema = {"type": "object", "additionalProperties": True}
+        if tool.annotations is None:
+            from mcp.types import ToolAnnotations
+
+            tool.annotations = ToolAnnotations()
+        tool.annotations.read_only_hint = tool.name not in STATEFUL_TOOLS
+        tool.annotations.destructive_hint = tool.name in MUTATING_TOOLS
+        tool.annotations.idempotent_hint = tool.name not in STATEFUL_TOOLS
+    return tools
 
 
 # Map tool names to their handlers
@@ -77,6 +102,12 @@ async def handle_tool_call(
     arguments: dict[str, Any],
 ) -> Any:
     """Route tool call to appropriate handler."""
+    if isinstance(client, MT5Client):
+        return await client.transaction(
+            lambda owner: handle_tool_call(owner, name, arguments),
+            name=name,
+            mutating=name in MUTATING_TOOLS,
+        )
     if name not in _TOOL_HANDLERS:
         raise ValueError(f"Unknown tool: {name}")
 

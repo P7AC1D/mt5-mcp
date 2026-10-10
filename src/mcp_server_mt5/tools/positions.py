@@ -2,9 +2,9 @@
 
 from typing import Any
 
-import MetaTrader5 as mt5
 from mcp.types import Tool, ToolAnnotations
 
+from .. import constants as mt5
 from ..mt5_client import MT5Client
 
 POSITION_TOOLS: list[Tool] = [
@@ -14,7 +14,7 @@ POSITION_TOOLS: list[Tool] = [
             "Get all open trading positions. Optionally filter by symbol or ticket number. "
             "Returns position details including entry price, current profit, volume, and type."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "symbol": {
@@ -32,7 +32,7 @@ POSITION_TOOLS: list[Tool] = [
     Tool(
         name="get_positions_count",
         description="Get the total number of open positions.",
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {},
             "required": [],
@@ -45,7 +45,7 @@ POSITION_TOOLS: list[Tool] = [
             "opposite direction to close the position. Supports partial close via the volume parameter. "
             "Uses the current bid (for closing BUY) or ask (for closing SELL) price."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "ticket": {
@@ -75,8 +75,8 @@ POSITION_TOOLS: list[Tool] = [
             "required": ["ticket"],
         },
         annotations=ToolAnnotations(
-            destructiveHint=True,
-            idempotentHint=False,
+            destructive_hint=True,
+            idempotent_hint=False,
         ),
     ),
     Tool(
@@ -85,7 +85,7 @@ POSITION_TOOLS: list[Tool] = [
             "⚠️ MODIFY the Stop Loss and/or Take Profit of an open position. "
             "Set sl or tp to 0 to remove an existing stop level."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "ticket": {
@@ -104,8 +104,8 @@ POSITION_TOOLS: list[Tool] = [
             "required": ["ticket"],
         },
         annotations=ToolAnnotations(
-            destructiveHint=True,
-            idempotentHint=True,
+            destructive_hint=True,
+            idempotent_hint=True,
         ),
     ),
 ]

@@ -32,7 +32,7 @@ class TestMT5ClientInitialization:
         with pytest.raises(MT5Error) as exc_info:
             await client.initialize()
 
-        assert "initialization failed" in str(exc_info.value)
+        assert "initialize failed" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_shutdown(self, mock_mt5_module, mock_settings):
@@ -135,7 +135,7 @@ class TestMT5ClientPositions:
     async def test_get_positions_empty(self, mock_mt5_client):
         """Test getting positions when none exist."""
         client, mock_mt5 = mock_mt5_client
-        mock_mt5.positions_get.return_value = None
+        mock_mt5.positions_get.return_value = ()
 
         positions = await client.get_positions()
 
@@ -176,7 +176,7 @@ class TestMT5ClientLogin:
         client, mock_mt5 = mock_mt5_client
         mock_mt5.login.return_value = False
 
-        with pytest.raises(MT5Error, match="Login failed"):
+        with pytest.raises(MT5Error, match="login failed"):
             await client.login(
                 login=99999999,
                 password="wrong",
@@ -221,7 +221,7 @@ class TestMT5ClientTerminalInfo:
         client, mock_mt5 = mock_mt5_client
         mock_mt5.terminal_info.return_value = None
 
-        with pytest.raises(MT5Error, match="Failed to get terminal info"):
+        with pytest.raises(MT5Error, match="terminal_info failed"):
             await client.get_terminal_info()
 
 
@@ -247,7 +247,7 @@ class TestMT5ClientMarketDepth:
         mock_mt5.symbol_info.return_value = mock_symbol_info
         mock_mt5.market_book_add.return_value = False
 
-        with pytest.raises(MT5Error, match="Failed to subscribe"):
+        with pytest.raises(MT5Error, match="market_book_add failed"):
             await client.market_book_add("EURUSD")
 
     @pytest.mark.asyncio
@@ -283,11 +283,18 @@ class TestMT5ClientOHLCBarsFrom:
         mock_mt5.symbol_info.return_value = mock_symbol_info
 
         import numpy as np
+
         mock_rates = np.array(
             [(1704067200, 1.1, 1.102, 1.098, 1.101, 500, 8, 100)],
             dtype=[
-                ("time", "i8"), ("open", "f8"), ("high", "f8"), ("low", "f8"),
-                ("close", "f8"), ("tick_volume", "i8"), ("spread", "i4"), ("real_volume", "i8"),
+                ("time", "i8"),
+                ("open", "f8"),
+                ("high", "f8"),
+                ("low", "f8"),
+                ("close", "f8"),
+                ("tick_volume", "i8"),
+                ("spread", "i4"),
+                ("real_volume", "i8"),
             ],
         )
         mock_mt5.copy_rates_from.return_value = mock_rates
@@ -314,11 +321,18 @@ class TestMT5ClientTicksFrom:
         mock_mt5.symbol_info.return_value = mock_symbol_info
 
         import numpy as np
+
         mock_ticks = np.array(
             [(1704067200, 1.1, 1.1001, 1.1, 100, 1704067200000, 0, 100.0)],
             dtype=[
-                ("time", "i8"), ("bid", "f8"), ("ask", "f8"), ("last", "f8"),
-                ("volume", "i8"), ("time_msc", "i8"), ("flags", "i4"), ("volume_real", "f8"),
+                ("time", "i8"),
+                ("bid", "f8"),
+                ("ask", "f8"),
+                ("last", "f8"),
+                ("volume", "i8"),
+                ("time_msc", "i8"),
+                ("flags", "i4"),
+                ("volume_real", "f8"),
             ],
         )
         mock_mt5.copy_ticks_from.return_value = mock_ticks
@@ -367,5 +381,5 @@ class TestMT5ClientSelectSymbol:
         client, mock_mt5 = mock_mt5_client
         mock_mt5.symbol_select.return_value = False
 
-        with pytest.raises(MT5Error, match="Failed to select"):
+        with pytest.raises(MT5Error, match="symbol_select failed"):
             await client.select_symbol("INVALID", True)

@@ -1,12 +1,12 @@
 """Market data tools for prices, symbols, and historical data."""
 
-from datetime import datetime
 from typing import Any
 
-import MetaTrader5 as mt5
 from mcp.types import Tool
 
+from .. import constants as mt5
 from ..mt5_client import MT5Client
+from ..validation import parse_utc
 
 # Timeframe mapping
 TIMEFRAMES = {
@@ -49,7 +49,7 @@ MARKET_DATA_TOOLS: list[Tool] = [
             "Get list of available trading symbols. Optionally filter by group pattern "
             "(e.g., '*USD*' for USD pairs, 'Forex*' for forex symbols)."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "group": {
@@ -66,7 +66,7 @@ MARKET_DATA_TOOLS: list[Tool] = [
             "Get detailed specification for a trading symbol including digits, lot size, "
             "tick size, margin requirements, trading hours, and contract specifications."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "symbol": {
@@ -83,7 +83,7 @@ MARKET_DATA_TOOLS: list[Tool] = [
             "Get current market tick for a symbol including bid, ask, last price, "
             "and volume. Use this to check current prices before trading."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "symbol": {
@@ -100,7 +100,7 @@ MARKET_DATA_TOOLS: list[Tool] = [
             "Get OHLC (Open, High, Low, Close) candlestick bars from a starting position. "
             "Position 0 is the current incomplete bar. Use for technical analysis."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "symbol": {
@@ -132,7 +132,7 @@ MARKET_DATA_TOOLS: list[Tool] = [
             "Get OHLC candlestick bars for a specific date/time range. "
             "Useful for backtesting or analyzing specific time periods."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "symbol": {
@@ -162,7 +162,7 @@ MARKET_DATA_TOOLS: list[Tool] = [
             "Get tick-by-tick data for a specific date/time range. "
             "Provides detailed bid/ask/last prices with millisecond precision."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "symbol": {
@@ -187,7 +187,7 @@ MARKET_DATA_TOOLS: list[Tool] = [
             "Get OHLC candlestick bars starting from a specific date/time. "
             "Returns up to 'count' bars from the given start date forward."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "symbol": {
@@ -219,7 +219,7 @@ MARKET_DATA_TOOLS: list[Tool] = [
             "Returns up to 'count' ticks from the given start date forward. "
             "Supports filtering by tick type: ALL, INFO (bid/ask changes), or TRADE (last price changes)."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "symbol": {
@@ -251,7 +251,7 @@ MARKET_DATA_TOOLS: list[Tool] = [
             "Add or remove a symbol from the MarketWatch window. "
             "A symbol must be visible in MarketWatch to receive quotes."
         ),
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {
                 "symbol": {
@@ -270,7 +270,7 @@ MARKET_DATA_TOOLS: list[Tool] = [
     Tool(
         name="get_symbols_count",
         description="Get the total number of symbols available on the trading server.",
-        inputSchema={
+        input_schema={
             "type": "object",
             "properties": {},
             "required": [],
@@ -336,7 +336,9 @@ async def handle_market_data_tool(
             "ask": tick.get("ask"),
             "last": tick.get("last"),
             "volume": tick.get("volume"),
-            "spread": round((tick.get("ask", 0) - tick.get("bid", 0)) * 100000, 1),  # Approximate pips
+            "spread": round(
+                (tick.get("ask", 0) - tick.get("bid", 0)) * 100000, 1
+            ),  # Approximate pips
         }
 
     if name == "get_ohlc_bars":
@@ -358,8 +360,8 @@ async def handle_market_data_tool(
         if timeframe is None:
             raise ValueError(f"Invalid timeframe: {timeframe_str}")
 
-        date_from = datetime.fromisoformat(arguments["date_from"])
-        date_to = datetime.fromisoformat(arguments["date_to"])
+        date_from = parse_utc(arguments["date_from"])
+        date_to = parse_utc(arguments["date_to"])
 
         return await client.get_ohlc_bars_range(
             symbol=arguments["symbol"],
@@ -369,8 +371,8 @@ async def handle_market_data_tool(
         )
 
     if name == "get_ticks_range":
-        date_from = datetime.fromisoformat(arguments["date_from"])
-        date_to = datetime.fromisoformat(arguments["date_to"])
+        date_from = parse_utc(arguments["date_from"])
+        date_to = parse_utc(arguments["date_to"])
 
         return await client.get_ticks_range(
             symbol=arguments["symbol"],
@@ -384,7 +386,7 @@ async def handle_market_data_tool(
         if timeframe is None:
             raise ValueError(f"Invalid timeframe: {timeframe_str}")
 
-        date_from = datetime.fromisoformat(arguments["date_from"])
+        date_from = parse_utc(arguments["date_from"])
 
         return await client.get_ohlc_bars_from(
             symbol=arguments["symbol"],
@@ -394,7 +396,7 @@ async def handle_market_data_tool(
         )
 
     if name == "get_ticks_from":
-        date_from = datetime.fromisoformat(arguments["date_from"])
+        date_from = parse_utc(arguments["date_from"])
         flags_str = arguments.get("flags", "ALL")
         flags = TICK_FLAGS.get(flags_str)
         if flags is None:

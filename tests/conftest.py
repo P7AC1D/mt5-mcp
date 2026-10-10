@@ -2,7 +2,7 @@
 
 from collections import namedtuple
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 import pytest_asyncio
@@ -10,25 +10,52 @@ import pytest_asyncio
 from mcp_server_mt5.config import MT5Settings
 from mcp_server_mt5.mt5_client import MT5Client
 
-
 # Named tuples to simulate MT5 API responses
 AccountInfo = namedtuple(
     "AccountInfo",
     [
-        "login", "name", "server", "currency", "balance", "equity",
-        "profit", "margin", "margin_free", "margin_level", "leverage",
-        "trade_mode", "limit_orders", "trade_allowed", "trade_expert",
+        "login",
+        "name",
+        "server",
+        "currency",
+        "balance",
+        "equity",
+        "profit",
+        "margin",
+        "margin_free",
+        "margin_level",
+        "leverage",
+        "trade_mode",
+        "limit_orders",
+        "trade_allowed",
+        "trade_expert",
     ],
 )
 
 SymbolInfo = namedtuple(
     "SymbolInfo",
     [
-        "name", "description", "path", "visible", "spread", "digits",
-        "trade_mode", "currency_base", "currency_profit", "currency_margin",
-        "point", "trade_tick_size", "trade_tick_value", "volume_min",
-        "volume_max", "volume_step", "spread_float", "margin_initial",
-        "margin_maintenance", "session_open", "session_close",
+        "name",
+        "description",
+        "path",
+        "visible",
+        "spread",
+        "digits",
+        "trade_mode",
+        "currency_base",
+        "currency_profit",
+        "currency_margin",
+        "point",
+        "trade_tick_size",
+        "trade_tick_value",
+        "volume_min",
+        "volume_max",
+        "volume_step",
+        "spread_float",
+        "margin_initial",
+        "margin_maintenance",
+        "session_open",
+        "session_close",
     ],
 )
 
@@ -40,44 +67,93 @@ TickInfo = namedtuple(
 PositionInfo = namedtuple(
     "PositionInfo",
     [
-        "ticket", "symbol", "type", "volume", "price_open", "price_current",
-        "sl", "tp", "profit", "swap", "commission", "time", "comment", "magic",
+        "ticket",
+        "symbol",
+        "type",
+        "volume",
+        "price_open",
+        "price_current",
+        "sl",
+        "tp",
+        "profit",
+        "swap",
+        "commission",
+        "time",
+        "comment",
+        "magic",
     ],
 )
 
 OrderInfo = namedtuple(
     "OrderInfo",
     [
-        "ticket", "symbol", "type", "volume_initial", "volume_current",
-        "price_open", "price_current", "sl", "tp", "time_setup",
-        "time_expiration", "comment", "magic",
+        "ticket",
+        "symbol",
+        "type",
+        "volume_initial",
+        "volume_current",
+        "price_open",
+        "price_current",
+        "sl",
+        "tp",
+        "time_setup",
+        "time_expiration",
+        "comment",
+        "magic",
     ],
 )
 
 OrderCheckResult = namedtuple(
     "OrderCheckResult",
     [
-        "retcode", "balance", "equity", "margin", "margin_free",
-        "margin_level", "comment", "request",
+        "retcode",
+        "balance",
+        "equity",
+        "margin",
+        "margin_free",
+        "margin_level",
+        "comment",
+        "request",
     ],
 )
 
 OrderSendResult = namedtuple(
     "OrderSendResult",
     [
-        "retcode", "order", "deal", "volume", "price",
-        "bid", "ask", "comment", "request_id",
+        "retcode",
+        "order",
+        "deal",
+        "volume",
+        "price",
+        "bid",
+        "ask",
+        "comment",
+        "request_id",
     ],
 )
 
 TerminalInfo = namedtuple(
     "TerminalInfo",
     [
-        "connected", "trade_allowed", "tradeapi_disabled", "dlls_allowed",
-        "email_enabled", "ftp_enabled", "notifications_enabled",
-        "community_account", "community_balance", "build", "maxbars",
-        "ping_last", "retransmission", "company", "name", "language",
-        "path", "data_path", "commondata_path",
+        "connected",
+        "trade_allowed",
+        "tradeapi_disabled",
+        "dlls_allowed",
+        "email_enabled",
+        "ftp_enabled",
+        "notifications_enabled",
+        "community_account",
+        "community_balance",
+        "build",
+        "maxbars",
+        "ping_last",
+        "retransmission",
+        "company",
+        "name",
+        "language",
+        "path",
+        "data_path",
+        "commondata_path",
     ],
 )
 
@@ -174,13 +250,15 @@ def mock_position():
 
 
 @pytest.fixture
-def mock_settings():
+def mock_settings(tmp_path):
     """Test MT5 settings."""
     return MT5Settings(
         login=12345678,
         password="test_password",
         server="TestServer-Demo",
         path=None,
+        journal_file=tmp_path / "journal.jsonl",
+        allow_account_switch=True,
     )
 
 
@@ -243,7 +321,7 @@ def mock_sell_position():
 
 
 @pytest_asyncio.fixture
-async def mock_mt5_client(mock_settings):
+async def mock_mt5_client(mock_settings, mock_account_info):
     """Create MT5 client with mocked MT5 module."""
     with patch("mcp_server_mt5.mt5_client.mt5") as mock_mt5:
         # Setup default mocks
@@ -251,6 +329,17 @@ async def mock_mt5_client(mock_settings):
         mock_mt5.shutdown.return_value = None
         mock_mt5.last_error.return_value = (0, "No error")
 
+        mock_mt5.account_info.return_value = mock_account_info
+        mock_mt5.login.return_value = True
+
+        def login_side_effect(**kwargs):
+            if mock_mt5.login.return_value is True:
+                mock_mt5.account_info.return_value = mock_mt5.account_info.return_value._replace(
+                    login=kwargs["login"], server=kwargs["server"]
+                )
+            return mock_mt5.login.return_value
+
+        mock_mt5.login.side_effect = login_side_effect
         client = MT5Client(mock_settings)
         await client.initialize()
 
@@ -266,7 +355,7 @@ def mock_mt5_module():
         mock_mt5.initialize.return_value = True
         mock_mt5.shutdown.return_value = None
         mock_mt5.last_error.return_value = (0, "No error")
-        
+
         # Timeframe constants
         mock_mt5.TIMEFRAME_M1 = 1
         mock_mt5.TIMEFRAME_M5 = 5
@@ -277,7 +366,7 @@ def mock_mt5_module():
         mock_mt5.TIMEFRAME_D1 = 16408
         mock_mt5.TIMEFRAME_W1 = 32769
         mock_mt5.TIMEFRAME_MN1 = 49153
-        
+
         # Order type constants
         mock_mt5.ORDER_TYPE_BUY = 0
         mock_mt5.ORDER_TYPE_SELL = 1
@@ -285,7 +374,7 @@ def mock_mt5_module():
         mock_mt5.ORDER_TYPE_SELL_LIMIT = 3
         mock_mt5.ORDER_TYPE_BUY_STOP = 4
         mock_mt5.ORDER_TYPE_SELL_STOP = 5
-        
+
         # Trade action constants
         mock_mt5.TRADE_ACTION_DEAL = 1
         mock_mt5.TRADE_ACTION_PENDING = 5
@@ -293,11 +382,11 @@ def mock_mt5_module():
         mock_mt5.TRADE_ACTION_MODIFY = 7
         mock_mt5.TRADE_ACTION_REMOVE = 8
         mock_mt5.TRADE_ACTION_CLOSE_BY = 10
-        
+
         # Order time/filling constants
         mock_mt5.ORDER_TIME_GTC = 0
         mock_mt5.ORDER_FILLING_IOC = 2
-        
+
         # Copy ticks flags
         mock_mt5.COPY_TICKS_ALL = 1
         mock_mt5.COPY_TICKS_INFO = 2
